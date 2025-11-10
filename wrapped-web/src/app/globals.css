@@ -1,0 +1,63 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background-color: #0f1a24;
+    color: white;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #0f1a24;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #c89b3c;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #d4aa4d;
+}
+
+/* LOL Wrapped animations (moved out of styled-jsx) */
+@keyframes wrapped-fade-in {
+    from {
+        opacity: 0;
+        transform: scale(1.05);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+.fade-in {
+    animation: wrapped-fade-in 0.5s ease-out;
+}
+
+.section-anim {
+    opacity: 0;
+    transform: translateY(8px);
+    transition:
+        opacity 420ms ease,
+        transform 420ms ease;
+    will-change: opacity, transform;
+}
+.section-in {
+    opacity: 1;
+    transform: translateY(0);
+}

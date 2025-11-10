@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+aiohttp
+python-dotenv
+sqlite-utils
+pydantic
+aiolimiter
+boto3

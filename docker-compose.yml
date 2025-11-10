@@ -1,0 +1,43 @@
+version: "3.9"
+
+services:
+  proxy:
+    image: <ECR_REGISTRY>/lolwrapped-nginx:latest
+    container_name: league-wrapped-proxy
+    ports:
+      - "80:80"
+    depends_on:
+      - web
+      - api
+    networks:
+      - league-network
+    restart: unless-stopped
+
+  web:
+    image: <ECR_REGISTRY>/lolwrapped-frontend:latest
+    container_name: league-wrapped-web
+    environment:
+      - NODE_ENV=production
+    expose:
+      - "3000"
+    networks:
+      - league-network
+    restart: unless-stopped
+
+  api:
+    image: <ECR_REGISTRY>/lolwrapped-backend:latest
+    container_name: league-wrapped-api
+    environment:
+      - AWS_REGION=us-east-1
+      - DYNAMODB_TABLE=lolwrapped_cache
+      - RIOT_API_KEY=${RIOT_API_KEY}
+    expose:
+      - "8000"
+    networks:
+      - league-network
+    restart: unless-stopped
+
+networks:
+  league-network:
+    name: league-network
+    driver: bridge

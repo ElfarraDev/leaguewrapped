@@ -1,0 +1,61 @@
+services:
+  proxy:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    container_name: league-wrapped-proxy
+    ports:
+      - "80:80"
+    # Use local nginx config for development
+    volumes:
+      - ./nginx/nginx.local.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - web
+      - api
+    networks:
+      - league-network
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./wrapped-web
+      dockerfile: Dockerfile
+    container_name: league-wrapped-web
+    environment:
+      - NODE_ENV=production
+    expose:
+      - "3000"
+    networks:
+      - league-network
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ./wrapped-api
+      dockerfile: Dockerfile
+    container_name: league-wrapped-api
+    env_file:
+      - .env
+    expose:
+      - "5000"
+    networks:
+      - league-network
+    restart: unless-stopped
+
+  bedrock-api:
+    build:
+      context: ./bedrock-api
+      dockerfile: Dockerfile
+    container_name: league-bedrock-api
+    env_file:
+      - .env
+    ports:
+      - "5001:5001"
+    networks:
+      - league-network
+    restart: unless-stopped
+
+networks:
+  league-network:
+    name: league-network
+    driver: bridge
