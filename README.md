@@ -10,7 +10,7 @@
 
 ## ▶️ How to Use
 
-Use the live endpoint: 👉 http://ec2-44-202-183-52.compute-1.amazonaws.com/
+Use the live endpoint: 👉 https://leaguewrapped.xyz/
 
 For now, only cached summoners will load with entire match history:
 - **denathor**
