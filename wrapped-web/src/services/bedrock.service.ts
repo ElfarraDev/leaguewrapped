@@ -13,7 +13,7 @@ export type BedrockResponse = {
 
 export const BASE =
   process.env.NEXT_PUBLIC_BEDROCK_API_URL ||
-  "http://ec2-44-202-183-52.compute-1.amazonaws.com/bedrock";
+  "https://leaguewrapped.xyz/bedrock";
 
 export async function bedrockGenerate(
   payload: BedrockPayload,
