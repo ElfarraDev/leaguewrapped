@@ -6,6 +6,9 @@ services:
     container_name: league-wrapped-proxy
     ports:
       - "80:80"
+      - "443:443"  # HTTPS port
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt:ro  # SSL certificates
     depends_on:
       - web
       - api
@@ -33,6 +36,17 @@ services:
       - RIOT_API_KEY=${RIOT_API_KEY}
     expose:
       - "8000"
+    networks:
+      - league-network
+    restart: unless-stopped
+
+  bedrock-api:
+    image: <ECR_REGISTRY>/lolwrapped-bedrock-api:latest
+    container_name: league-bedrock-api
+    environment:
+      - AWS_REGION=us-east-1
+    expose:
+      - "5001"
     networks:
       - league-network
     restart: unless-stopped
