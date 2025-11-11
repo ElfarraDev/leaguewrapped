@@ -1,0 +1,116 @@
+name: Build, Push, and Deploy Multi-Container App
+
+on:
+  push:
+    branches: [main]
+
+env:
+  FRONTEND_REPO: lolwrapped-frontend
+  BACKEND_REPO: lolwrapped-backend
+  NGINX_REPO: lolwrapped-nginx
+  BEDROCK_REPO: lolwrapped-bedrock-api
+  APP_TAG: lolwrapped
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    outputs:
+      frontend_image: ${{ steps.build-frontend.outputs.frontend_image }}
+      backend_image: ${{ steps.build-backend.outputs.backend_image }}
+      nginx_image: ${{ steps.build-nginx.outputs.nginx_image }}
+      bedrock_image: ${{ steps.build-bedrock.outputs.bedrock_image }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and Push Frontend
+        id: build-frontend
+        run: |
+          FRONTEND_URI=${{ steps.login-ecr.outputs.registry }}/${{ env.FRONTEND_REPO }}:latest
+          docker build -t $FRONTEND_URI ./wrapped-web
+          docker push $FRONTEND_URI
+          echo "frontend_image=$FRONTEND_URI" >> "$GITHUB_OUTPUT"
+
+      - name: Build and Push Backend
+        id: build-backend
+        run: |
+          BACKEND_URI=${{ steps.login-ecr.outputs.registry }}/${{ env.BACKEND_REPO }}:latest
+          docker build -t $BACKEND_URI ./wrapped-api
+          docker push $BACKEND_URI
+          echo "backend_image=$BACKEND_URI" >> "$GITHUB_OUTPUT"
+
+      - name: Build and Push Nginx
+        id: build-nginx
+        run: |
+          NGINX_URI=${{ steps.login-ecr.outputs.registry }}/${{ env.NGINX_REPO }}:latest
+          docker build -t $NGINX_URI ./nginx
+          docker push $NGINX_URI
+          echo "nginx_image=$NGINX_URI" >> "$GITHUB_OUTPUT"
+
+      - name: Build and Push Bedrock API
+        id: build-bedrock
+        run: |
+          BEDROCK_URI=${{ steps.login-ecr.outputs.registry }}/${{ env.BEDROCK_REPO }}:latest
+          docker build -t $BEDROCK_URI ./bedrock-api
+          docker push $BEDROCK_URI
+          echo "bedrock_image=$BEDROCK_URI" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build-and-push
+
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Find EC2 instance
+        id: find
+        run: |
+          IDS=$(aws ec2 describe-instances \
+            --filters "Name=tag:App,Values=${{ env.APP_TAG }}" "Name=instance-state-name,Values=running" \
+            --query "Reservations[].Instances[].InstanceId" --output text)
+          echo "instance_ids=$IDS" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy via SSM
+        run: |
+          FRONTEND=${{ needs.build-and-push.outputs.frontend_image }}
+          BACKEND=${{ needs.build-and-push.outputs.backend_image }}
+          NGINX=${{ needs.build-and-push.outputs.nginx_image }}
+          BEDROCK=${{ needs.build-and-push.outputs.bedrock_image }}
+
+          FRONTEND="342194238285.dkr.ecr.us-east-1.amazonaws.com/lolwrapped-frontend:latest"
+          BACKEND="342194238285.dkr.ecr.us-east-1.amazonaws.com/lolwrapped-backend:latest"
+          NGINX="342194238285.dkr.ecr.us-east-1.amazonaws.com/lolwrapped-nginx:latest"
+          BEDROCK="342194238285.dkr.ecr.us-east-1.amazonaws.com/lolwrapped-bedrock-api:latest"
+
+
+          echo "Deploying these images:"
+          echo "Frontend: $FRONTEND"
+          echo "Backend: $BACKEND"
+          echo "Nginx: $NGINX"
+          echo "Bedrock API: $BEDROCK"
+
+          CMD="bash /usr/local/bin/deploy-lolwrapped.sh $FRONTEND $BACKEND $NGINX $BEDROCK"
+          echo "Deploy command: $CMD"
+
+          aws ssm send-command \
+            --document-name "AWS-RunShellScript" \
+            --comment "Deploy multi-container app" \
+            --instance-ids ${{ steps.find.outputs.instance_ids }} \
+            --parameters commands="$CMD" \
+            --timeout-seconds 900
